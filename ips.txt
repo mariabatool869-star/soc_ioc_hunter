@@ -1,0 +1,43 @@
+# =============================================================================
+# SOC IOC Feed — IP Address Blocklist
+# =============================================================================
+# Case ID       : SOC-2026-0610-001
+# Analyst       : SOC Investigation Team
+# Last Updated  : 2026-06-10
+# Classification: TLP:AMBER
+# Source        : Internal threat hunt, AbuseIPDB correlation, OSINT enrichment
+# Description   : Active investigation — C2, brute-force, scanning, and phishing infra
+# =============================================================================
+
+# --- Confirmed Malicious (High Confidence) ---
+185.130.5.253
+45.155.205.233
+94.102.61.78
+185.220.101.45
+91.219.236.166
+23.227.38.65
+45.142.212.61
+194.26.192.45
+89.248.165.45
+103.253.41.78
+
+# --- Suspicious / Pending Enrichment ---
+77.88.55.242
+104.21.32.5
+151.101.1.140
+185.199.108.153
+52.218.128.19
+34.107.243.81
+149.154.167.51
+167.99.132.226
+45.33.32.156
+198.199.121.176
+
+# --- Internal Hosts (Incident Scope) ---
+192.168.1.105
+10.0.0.47
+172.16.254.12
+
+# --- Baseline / Connectivity Validation ---
+8.8.8.8
+1.1.1.1

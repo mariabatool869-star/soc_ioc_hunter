@@ -1,0 +1,16 @@
+# Copy to config.yaml and set your AbuseIPDB API key.
+# Never commit config.yaml with a real key.
+#
+#   copy config.example.yaml config.yaml
+
+api_key: "YOUR_ABUSEIPDB_KEY_HERE"
+base_url: "https://api.abuseipdb.com/api/v2/check"
+retry_attempts: 3
+retry_delay: 10
+request_delay: 0.5
+skip_private_ips: true
+input_file: "ips.txt"
+output_dir: "./reports"
+thresholds:
+  malicious: 51   # AbuseIPDB score 51-100
+  suspicious: 11  # AbuseIPDB score 11-50
