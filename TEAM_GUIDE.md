@@ -2,6 +2,20 @@
 
 Internal runbook for analysts and engineers. For product overview and install, see [README.md](README.md).
 
+## Handover statement
+
+This SOP is your team's **complete independence package**.
+
+I built this tool, tested it, and documented every moving part below. Once you run the health check and see the `reports/` folder populate, you do not need ongoing contact for day-to-day maintenance.
+
+**What you own after delivery:**
+
+- Full source code (GitHub access)
+- This SOP (troubleshooting + runbooks)
+- Config templates (ready for your API keys)
+
+**What is not included:** Ongoing 24/7 support, free feature additions, or debugging your network/firewall. Custom work (Splunk integration, Slack alerts, multi-source enrichment) is a **new fixed-price project** — not a quick favor.
+
 **IOC** = Indicator of Compromise (here: an IP address that may warrant investigation).
 
 ---
@@ -175,11 +189,26 @@ Keep thresholds and secrets out of source code.
 - [ ] Sample run creates `reports/<timestamp>/` and `logs/run_*.log`  
 - [ ] `config.yaml` is gitignored and not shared in Slack/email  
 - [ ] `python -m pytest -q` passes  
+- [ ] I have saved this SOP offline (you own this document after handover)
 
 ---
 
-## 11. Roadmap
+## 11. Scope of delivery (support boundary)
 
-**Done:** config loader, retries, request delay, private-IP skip, rich CSV, timestamped reports, file logging, classifier + config tests, team docs.
+This project was delivered as a **fixed-price, one-time engagement**.
 
-**Optional next:** mocked HTTP client tests, second intel source, firewall/Suricata export formats, GitHub Actions CI.
+**In scope (delivered):**
+
+- Functional CLI tool (AbuseIPDB enrichment + CSV reporting + audit logging)
+- This SOP (`TEAM_GUIDE.md`) and product docs (`README.md`)
+- `config.example.yaml` and `requirements.txt`
+
+**Out of scope (new project required):**
+
+- Adding new data sources (VirusTotal, MISP, Hybrid Analysis)
+- Writing custom parsers for your SIEM (Splunk / ELK exports)
+- Building a GUI or web dashboard
+- Running this tool on your production servers (your IT team handles deployment)
+- 24/7 emergency fixes (if AbuseIPDB changes their API in a breaking way, that is a new engagement)
+
+**How to request new work:** Email [mariabatool869@gmail.com](mailto:mariabatool869@gmail.com) with the subject `New Project: [Your Feature]`. You will get a fixed price and delivery window within 24 hours.
