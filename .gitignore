@@ -5,7 +5,8 @@ config.yaml
 # Runtime outputs (keep folder via .gitkeep)
 reports/*
 !reports/.gitkeep
-logs/
+logs/*
+!logs/.gitkeep
 report.csv
 malicious_ips.txt
 

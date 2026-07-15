@@ -75,6 +75,7 @@ Use this script almost as written:
 | `abuseipdb_client.py` | HTTP client with retries for flaky/429/5xx responses |
 | `classifier.py` | Score thresholds + RFC1918 / private IP skip |
 | `reporting.py` | Creates `reports/<timestamp>/` and writes CSV + blocklist |
+| `logger.py` | Console + file audit logging to `logs/` |
 | `check_api.py` | Quick “is my API key alive?” check |
 | `config.example.yaml` | Template teammates copy to `config.yaml` |
 | `ips.txt` | Input feed (`#` = comment) |
@@ -152,7 +153,7 @@ python -m pytest -q
 
 ### Next (optional)
 
-- [ ] File logging under `logs/`  
+- [x] File logging under `logs/`  
 - [ ] Mocked HTTP tests for the API client  
 - [ ] Second intel source (e.g. VirusTotal) with agree/disagree  
 - [ ] Firewall / Suricata export formats  

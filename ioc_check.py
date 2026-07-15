@@ -11,6 +11,7 @@ from pathlib import Path
 from abuseipdb_client import AbuseIPDBClient
 from classifier import classify, is_private_ip
 from config_loader import ConfigLoader
+from logger import setup_logging
 from reporting import (
     create_run_dir,
     open_malicious_list,
@@ -67,8 +68,13 @@ def main(argv: list[str] | None = None) -> int:
         print(exc)
         return 1
 
+    log_dir = config.get("log_dir", "./logs")
+    logger, log_file = setup_logging(log_dir)
+    logger.info("SOC IOC HUNTER - Threat Intelligence Tool")
+    logger.info("Log file: %s", log_file)
+
     if str(api_key).startswith("YOUR_"):
-        print("[FATAL] Replace the placeholder api_key in config.yaml")
+        logger.error("Replace the placeholder api_key in config.yaml")
         return 1
 
     retry_attempts = int(config.get("retry_attempts", 3))
@@ -81,25 +87,19 @@ def main(argv: list[str] | None = None) -> int:
     input_path = Path(args.input or config.get("input_file", "ips.txt"))
     output_root = Path(args.output_dir or config.get("output_dir", "./reports"))
 
-    print("=" * 50)
-    print("SOC IOC HUNTER - Threat Intelligence Tool")
-    print("=" * 50)
-    print()
-
     try:
         ip_list = load_ips(input_path)
     except FileNotFoundError:
-        print(f"ERROR: input file not found: {input_path}")
-        print("Create it with one IP per line (lines starting with # are ignored).")
+        logger.error("Input file not found: %s", input_path)
+        logger.error("Create it with one IP per line (lines starting with # are ignored).")
         return 1
 
     if not ip_list:
-        print(f"ERROR: no IPs found in {input_path}")
+        logger.error("No IPs found in %s", input_path)
         return 1
 
-    print(f"Loaded {len(ip_list)} IP addresses from {input_path}")
-    print(f"Config: {args.config}")
-    print()
+    logger.info("Loaded %d IP addresses from %s", len(ip_list), input_path)
+    logger.info("Config: %s", args.config)
 
     client = AbuseIPDBClient(
         api_key=str(api_key),
@@ -120,12 +120,12 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         for index, ip in enumerate(ip_list, 1):
-            print(f"Checking IP {index} of {len(ip_list)}: {ip}")
+            logger.info("Checking IP %d of %d: %s", index, len(ip_list), ip)
             timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
             if skip_private and is_private_ip(ip):
                 skipped_count += 1
-                print("  → SKIPPED (private / RFC1918 address)")
+                logger.info("  SKIPPED (private / RFC1918 address)")
                 write_row(
                     writer,
                     timestamp=timestamp,
@@ -133,14 +133,13 @@ def main(argv: list[str] | None = None) -> int:
                     score="",
                     verdict="SKIPPED_PRIVATE",
                 )
-                print()
                 continue
 
             result = client.check(ip)
 
             if not result.ok:
                 failed_count += 1
-                print(f"  → {result.error}")
+                logger.warning("  %s", result.error)
                 write_row(
                     writer,
                     timestamp=timestamp,
@@ -149,8 +148,7 @@ def main(argv: list[str] | None = None) -> int:
                     verdict="FAILED",
                 )
                 if result.fatal_auth:
-                    print()
-                    print("Stopping: fix api_key in config.yaml, then re-run.")
+                    logger.error("Stopping: fix api_key in config.yaml, then re-run.")
                     break
             else:
                 assert result.score is not None
@@ -163,13 +161,13 @@ def main(argv: list[str] | None = None) -> int:
                         f"{ip} | Score: {result.score} | "
                         f"Country: {result.country} | ISP: {result.isp}\n"
                     )
-                    print(f"  → Score: {result.score} | MALICIOUS")
+                    logger.info("  Score: %d | MALICIOUS", result.score)
                 elif verdict == "SUSPICIOUS":
                     suspicious_count += 1
-                    print(f"  → Score: {result.score} | SUSPICIOUS")
+                    logger.info("  Score: %d | SUSPICIOUS", result.score)
                 else:
                     safe_count += 1
-                    print(f"  → Score: {result.score} | SAFE")
+                    logger.info("  Score: %d | SAFE", result.score)
 
                 write_row(
                     writer,
@@ -183,7 +181,6 @@ def main(argv: list[str] | None = None) -> int:
                     usage_type=result.usage_type,
                 )
 
-            print()
             if request_delay > 0 and index < len(ip_list):
                 time.sleep(request_delay)
     finally:
@@ -191,21 +188,16 @@ def main(argv: list[str] | None = None) -> int:
         malicious_handle.close()
 
     api_success = malicious_count + suspicious_count + safe_count
-    print("=" * 50)
-    print("SUMMARY REPORT")
-    print("=" * 50)
-    print(f"Total IPs loaded:   {len(ip_list)}")
-    print(f"API successes:      {api_success}")
-    print(f"MALICIOUS:          {malicious_count}")
-    print(f"SUSPICIOUS:         {suspicious_count}")
-    print(f"SAFE:               {safe_count}")
-    print(f"SKIPPED (private):  {skipped_count}")
-    print(f"FAILED:             {failed_count}")
-    print()
-    print("Reports saved:")
-    print(f"  {report_path}")
-    print(f"  {malicious_path} ({malicious_count} IPs)")
-    print("=" * 50)
+    logger.info("SUMMARY REPORT")
+    logger.info("Total IPs loaded:   %d", len(ip_list))
+    logger.info("API successes:      %d", api_success)
+    logger.info("MALICIOUS:          %d", malicious_count)
+    logger.info("SUSPICIOUS:         %d", suspicious_count)
+    logger.info("SAFE:               %d", safe_count)
+    logger.info("SKIPPED (private):  %d", skipped_count)
+    logger.info("FAILED:             %d", failed_count)
+    logger.info("Report: %s", report_path)
+    logger.info("Blocklist: %s (%d IPs)", malicious_path, malicious_count)
     return 0
 
 

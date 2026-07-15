@@ -28,6 +28,7 @@ flowchart LR
 | `abuseipdb_client.py` | AbuseIPDB HTTP client with retries |
 | `classifier.py` | Score → verdict; private IP detection |
 | `reporting.py` | Timestamped CSV + blocklist writers |
+| `logger.py` | Console + file audit logging |
 | `check_api.py` | Quick “is my API key alive?” smoke test |
 | `config.example.yaml` | Safe template to copy → `config.yaml` |
 | `ips.txt` | Input IP list (`#` comments ignored) |

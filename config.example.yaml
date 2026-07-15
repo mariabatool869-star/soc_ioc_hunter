@@ -11,6 +11,7 @@ request_delay: 0.5
 skip_private_ips: true
 input_file: "ips.txt"
 output_dir: "./reports"
+log_dir: "./logs"
 thresholds:
   malicious: 51   # AbuseIPDB score 51-100
   suspicious: 11  # AbuseIPDB score 11-50
