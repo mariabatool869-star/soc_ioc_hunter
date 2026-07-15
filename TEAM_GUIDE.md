@@ -1,178 +1,185 @@
-# SOC IOC Hunter — Team Guide
+# SOC IOC Hunter — Standard Operating Procedure (SOP)
 
-**Explain it + make it better.** Use this for standups, demos, and interviews.
+Internal runbook for analysts and engineers. For product overview and install, see [README.md](README.md).
 
----
-
-## What you have today (30-second truth)
-
-A Python CLI that reads IPs from `ips.txt`, asks **AbuseIPDB** how abusive each IP looks (score 0–100), labels them **SAFE / SUSPICIOUS / MALICIOUS** using thresholds in `config.yaml`, skips private RFC1918 addresses when configured, and writes:
-
-- `reports/<timestamp>/report.csv` — full investigation log  
-- `reports/<timestamp>/malicious_ips.txt` — high-confidence blocklist  
-
-```mermaid
-flowchart LR
-  ipsTxt[ips.txt] --> iocCheck[ioc_check.py]
-  configYaml[config.yaml] --> loader[ConfigLoader]
-  loader --> iocCheck
-  iocCheck --> classifier[classifier.py]
-  iocCheck --> client[abuseipdb_client.py]
-  client --> abuseApi[AbuseIPDB]
-  abuseApi --> client
-  client --> iocCheck
-  iocCheck --> reporting[reporting.py]
-  reporting --> reportCsv["reports/timestamp/report.csv"]
-  reporting --> blocklist["reports/timestamp/malicious_ips.txt"]
-```
-
-**IOC** = Indicator of Compromise — a technical clue (here: an IP) that may indicate malicious activity.
+**IOC** = Indicator of Compromise (here: an IP address that may warrant investigation).
 
 ---
 
-## 1. Elevator pitch (15 seconds)
-
-> SOC IOC Hunter takes a list of IP addresses from an investigation, looks each one up in AbuseIPDB reputation data, and produces a timestamped CSV audit report plus a ready-to-use blocklist of high-confidence malicious IPs.
-
----
-
-## 2. What problem it solves
-
-SOC analysts get many IPs from alerts, firewall logs, or hunts. Checking each by hand is slow. This tool:
-
-1. Batches AbuseIPDB lookups  
-2. Maps confidence scores to SAFE / SUSPICIOUS / MALICIOUS  
-3. Skips private hosts that AbuseIPDB cannot meaningfully score  
-4. Saves an audit CSV and a short action list  
-
-It **enriches** IOCs. It does not prove compromise and does not auto-block traffic.
-
----
-
-## 3. For a technical interviewer / classmate (1–2 minutes)
-
-Use this script almost as written:
-
-1. **Problem:** Analysts receive many IPs from alerts, logs, and threat hunts, and need fast enrichment before deciding to investigate further or recommend a block.
-2. **Approach:** Batch-check AbuseIPDB abuse-confidence scores (0–100) and map them to SOC-friendly verdicts — SAFE, SUSPICIOUS, MALICIOUS — using configurable thresholds in `config.yaml`.
-3. **Design choices:**
-   - Secrets and settings live in `config.yaml` (not hardcoded in source)
-   - Modular layout: config loader, API client, classifier, reporting, thin CLI
-   - Retries for flaky / rate-limited API responses, plus a small delay between requests
-   - Private/RFC1918 IPs are skipped so we do not waste quota or mislead analysts
-   - Each run writes under a timestamped folder so previous investigations are preserved
-4. **Outputs:** Full audit trail (`reports/<run>/report.csv`, including country/ISP/report counts) and an action list (`malicious_ips.txt`) for tickets or blocking workflows.
-5. **Honest limit:** Reputation is one signal — not proof of compromise. Private IPs, CDNs, shared hosting, and Tor exits still need human judgment.
-
----
-
-## 4. Core pieces
-
-| File | Role |
-|------|------|
-| `ioc_check.py` | Real tool — CLI, orchestration, retries/delay wiring |
-| `config_loader.py` | Loads YAML; friendly error if config is missing |
-| `abuseipdb_client.py` | HTTP client with retries for flaky/429/5xx responses |
-| `classifier.py` | Score thresholds + RFC1918 / private IP skip |
-| `reporting.py` | Creates `reports/<timestamp>/` and writes CSV + blocklist |
-| `logger.py` | Console + file audit logging to `logs/` |
-| `check_api.py` | Quick “is my API key alive?” check |
-| `config.example.yaml` | Template teammates copy to `config.yaml` |
-| `ips.txt` | Input feed (`#` = comment) |
-| `tests/test_classifier.py` | Unit tests for verdicts / private IPs |
-
-**Removed / unused (do not bring back):** `main.py`, `config.py`, root-level leftover `report.csv` / `malicious_ips.txt`, old `test_APi.py` — outputs belong only under `reports/`.
-
-### Verdict rules (`config.yaml`)
-
-| Score | Verdict | Meaning |
-|------:|---------|---------|
-| 0–10 | SAFE | Low / no abuse confidence |
-| 11–50 | SUSPICIOUS | Worth a closer look |
-| 51–100 | MALICIOUS | High confidence — list for block |
-
----
-
-## 5. Setup (new teammate)
+## One-line production run
 
 ```bash
-pip install -r requirements.txt
-copy config.example.yaml config.yaml
+python ioc_check.py --input ips.txt --config config.yaml --output-dir ./reports
 ```
 
-Set `api_key` from [AbuseIPDB API](https://www.abuseipdb.com/account/api).
+---
+
+## 1. Quick start (L1 analysts)
+
+> Goal: enrich a list of IPs and open today’s report.
+
+1. Confirm `config.yaml` exists (copy from `config.example.yaml` if needed) and `api_key` is set.  
+2. Put investigation IPs in `ips.txt` (one per line; `#` starts a comment).  
+3. Health check:
 
 ```bash
 python check_api.py
-python ioc_check.py
-# or:
-python ioc_check.py --config config.yaml --input ips.txt --output-dir ./reports
-python -m pytest -q
 ```
 
-**401 Unauthorized** → invalid/expired key. Fix `api_key` in `config.yaml` and re-run.
+Expected: HTTP **200** and a printed abuse score for `8.8.8.8`.
+
+4. Run enrichment:
+
+```bash
+python ioc_check.py
+```
+
+5. Open the newest folder under `reports/` — use `report.csv` for triage and `malicious_ips.txt` for escalation / block candidates.  
+6. If needed, attach `logs/run_*.log` to the ticket as the run audit trail.
 
 ---
 
-## 6. Demo script
+## 2. Health check
 
-1. Open `ips.txt` — mix of public + private sample IPs  
-2. `python check_api.py` — config loads, key works  
-3. `python ioc_check.py` — live checks; private IPs show as skipped  
-4. Open newest folder under `reports/` — show CSV + blocklist  
-5. Limits: reputation is one signal; CDNs / Tor exits need human judgment  
+```bash
+python check_api.py
+```
+
+| Result | Meaning | Action |
+|--------|---------|--------|
+| Status 200 | Key and network OK | Proceed with `ioc_check.py` |
+| Status 401 | Invalid key | Regenerate at AbuseIPDB → update `config.yaml` |
+| Timeout / connection error | Network, proxy, or firewall | Check egress to `api.abuseipdb.com` |
 
 ---
 
-## 7. Quick recap card
+## 3. Troubleshooting triage
+
+| Symptom | Likely cause | Fix |
+|---------|--------------|-----|
+| `[FATAL] config.yaml not found` | Local config missing | `copy config.example.yaml config.yaml` and set `api_key` |
+| `Unauthorized (401)` / fatal auth | Invalid or expired API key | New key from AbuseIPDB; update `config.yaml` |
+| `API Error: Status code 429` | Rate limit | Raise `request_delay` (e.g. `1.0`); reduce list size; check plan quota |
+| Repeated 5xx errors | AbuseIPDB / network instability | Tool retries transient 5xx; wait and re-run remaining IPs |
+| `SKIPPED_PRIVATE` in CSV | RFC1918 / private address | Expected when `skip_private_ips: true` — do not treat as reputation score |
+| Input file not found | Wrong `--input` path | Pass correct path or set `input_file` in config |
+| Empty / unexpected scores | Quota or incomplete run | Check summary FAILED count and log file |
+
+---
+
+## 4. Configuration reference (engineering)
+
+Copy `config.example.yaml` → `config.yaml` (gitignored).
+
+| Key | Purpose |
+|-----|---------|
+| `api_key` | AbuseIPDB API key (required) |
+| `base_url` | Check endpoint URL |
+| `retry_attempts` / `retry_delay` | Retries on 429 and 5xx |
+| `request_delay` | Pause between successful requests (rate limiting) |
+| `skip_private_ips` | Skip RFC1918 / private addresses |
+| `input_file` / `output_dir` / `log_dir` | Paths |
+| `thresholds.malicious` / `thresholds.suspicious` | Verdict bands |
+
+`ConfigLoader.require()` fails fast if required keys are missing or empty.
+
+### Verdict defaults
+
+| Score | Verdict |
+|------:|---------|
+| 0–10 | SAFE |
+| 11–50 | SUSPICIOUS |
+| 51–100 | MALICIOUS |
+
+---
+
+## 5. Audit trail (investigation records)
+
+Every successful run writes:
+
+| Artifact | Path | Use |
+|----------|------|-----|
+| CSV report | `reports/<timestamp>/report.csv` | Ticket evidence / analyst review |
+| Blocklist | `reports/<timestamp>/malicious_ips.txt` | Candidates for further action |
+| Run log | `logs/run_<timestamp>.log` | Console-equivalent audit of the run |
+
+These files help you show **what was checked, when, and with what verdict**. They support internal investigation hygiene and ticket evidence. They are **not** a SOC 2 / ISO certification by themselves.
+
+---
+
+## 6. Module map
+
+| File | Responsibility |
+|------|----------------|
+| `ioc_check.py` | Orchestration / CLI |
+| `abuseipdb_client.py` | AbuseIPDB HTTP + retries |
+| `classifier.py` | Scoring + private IP detection |
+| `reporting.py` | Timestamped report writers |
+| `logger.py` | Console + file logging |
+| `config_loader.py` | YAML configuration |
+| `check_api.py` | Standalone connectivity smoke test |
+| `tests/` | Unit tests (`pytest`) |
+
+Outputs belong under `reports/` and `logs/`. Do not rely on root-level leftover `report.csv` / `malicious_ips.txt` if present.
+
+---
+
+## 7. Demo script (standups / interviews)
+
+1. Show `ips.txt` (mix of public + private samples).  
+2. `python check_api.py`  
+3. `python ioc_check.py` — note private IPs skipped.  
+4. Open newest `reports/<run>/` and a matching `logs/run_*.log`.  
+5. State limits: reputation ≠ compromise; CDNs and Tor exits need judgment.
+
+### Pitch (15 seconds)
+
+> SOC IOC Hunter takes investigation IPs, enriches them with AbuseIPDB, and produces a timestamped CSV plus a high-confidence malicious list for triage.
+
+### Interview card (1–2 minutes)
 
 | Point | One-liner |
 |-------|-----------|
-| Problem | Too many IPs to enrich manually during triage |
+| Problem | Too many IPs to enrich manually |
 | Approach | AbuseIPDB scores → SAFE / SUSPICIOUS / MALICIOUS |
-| Design | Config-driven, modular, retries, private-IP skip, timestamped reports |
-| Outputs | `report.csv` audit trail + `malicious_ips.txt` action list |
-| Limit | Reputation ≠ compromise; CDNs / Tor / private IPs need analysts |
+| Design | Config-driven, modular, retries, rate delay, private-IP skip, timestamped reports + logs |
+| Outputs | `report.csv` + `malicious_ips.txt` + `logs/run_*.log` |
+| Limit | One signal among many — analyst still decides |
 
 ---
 
-## 8. Make it better (roadmap)
+## 8. Extending later (optional)
 
-### Done
+To add another intel source (e.g. VirusTotal):
 
-- [x] Config via YAML + `ConfigLoader` (no hardcoded key in code)  
-- [x] Friendly missing-config error  
-- [x] Retries + clear 401 handling  
-- [x] Skip private RFC1918 IPs  
-- [x] Richer CSV (Country, ISP, TotalReports, UsageType)  
-- [x] Timestamped `reports/` folders  
-- [x] CLI: `--input`, `--config`, `--output-dir`  
-- [x] Request delay between calls  
-- [x] Modules split + classifier unit tests  
-- [x] `.gitignore`, `config.example.yaml`, README + this guide  
+1. Add its API key under `config.yaml`  
+2. Add a new client module patterned on `abuseipdb_client.py`  
+3. Wire results into `ioc_check.py` / reporting (CLI must orchestrate the second source)
 
-### Next (optional)
-
-- [x] File logging under `logs/`  
-- [ ] Mocked HTTP tests for the API client  
-- [ ] Second intel source (e.g. VirusTotal) with agree/disagree  
-- [ ] Firewall / Suricata export formats  
-- [ ] Sample anonymized report artifact for demos  
+Keep thresholds and secrets out of source code.
 
 ---
 
 ## 9. Security notes
 
-- Never commit `config.yaml` with a real `api_key`.  
-- Rotate keys that appeared in chat, screenshots, or shared zips.  
-- Treat investigation IPs as sensitive (TLP:AMBER unless told otherwise).  
-- Do not publish customer or production IPs in public repos.  
+- Never commit real `api_key` values  
+- Rotate keys shared outside secure channels  
+- Treat client IPs and investigation lists as sensitive  
+- Prefer anonymized samples in public screenshots  
 
 ---
 
 ## 10. Owner checklist
 
-- [ ] `python check_api.py` succeeds  
-- [ ] Sample run creates a folder under `reports/`  
+- [ ] `python check_api.py` returns 200  
+- [ ] Sample run creates `reports/<timestamp>/` and `logs/run_*.log`  
 - [ ] `config.yaml` is gitignored and not shared in Slack/email  
 - [ ] `python -m pytest -q` passes  
+
+---
+
+## 11. Roadmap
+
+**Done:** config loader, retries, request delay, private-IP skip, rich CSV, timestamped reports, file logging, classifier + config tests, team docs.
+
+**Optional next:** mocked HTTP client tests, second intel source, firewall/Suricata export formats, GitHub Actions CI.
