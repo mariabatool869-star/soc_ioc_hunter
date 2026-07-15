@@ -154,28 +154,6 @@ This repo is the open-source foundation. Production extensions:
 - VirusTotal / MISP as secondary sources
 - Scheduled cron deployment
 
-- ## Sample Run
-
-Here is a real execution example:
-
-```bash
-$ python ioc_check.py --input ips.txt
-
-2026-07-15 11:56:23 - INFO - ============================================================
-2026-07-15 11:56:23 - INFO - SOC IOC HUNTER v2.0 - Professional Edition
-2026-07-15 11:56:23 - INFO - ============================================================
-2026-07-15 11:56:23 - INFO - Loaded 25 IPs from ips.txt
-2026-07-15 11:56:23 - INFO - Total IPs loaded: 25
-2026-07-15 11:56:23 - INFO - API successes: 22
-2026-07-15 11:56:23 - INFO - MALICIOUS: 1
-2026-07-15 11:56:23 - INFO - SUSPICIOUS: 2
-2026-07-15 11:56:23 - INFO - SAFE: 19
-2026-07-15 11:56:23 - INFO - SKIPPED (private): 3
-2026-07-15 11:56:23 - INFO - FAILED: 0
-2026-07-15 11:56:23 - INFO - Report: reports/2026-07-15_115608/report.csv
-2026-07-15 11:56:23 - INFO - ============================================================
-
-## Contact
 **Email:** mariabatool869@gmail.com  
 **LinkedIn:** [linkedin.com/in/mariabatool7](https://linkedin.com/in/mariabatool7)  
 **GitHub:** [github.com/mariabatool869-star](https://github.com/mariabatool869-star)
